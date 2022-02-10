@@ -20,7 +20,7 @@ class RecallVisualizer(object):
             targ_scores = info['targ_scores']
             gt_score = info['gt_score']
             img_data = []
-            ref_img, ref_gt, modifier, targ_gt, _ = self.query_dataset.__getitem__(ref_idx, use_transform=False)
+            ref_img, ref_gt, modifier, targ_gt, _, _ = self.query_dataset.__getitem__(ref_idx, use_transform=False)
             ref_caption = 'Ref: {}'.format(modifier)
             formatted_ref_img = self._crop_and_center_img(ref_img)
             img_data.append(wandb.Image(formatted_ref_img, caption=ref_caption))

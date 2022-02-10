@@ -1,6 +1,6 @@
 {
   "epoch": 50,
-  "batch_size": 32,
+  "batch_size": 16,
   "num_workers": 16,
   "metric_loss": "batch_based_classification_loss",
   "selector": "all",

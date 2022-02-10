@@ -19,10 +19,10 @@ class TIRGTrainer(AbstractBaseTrainer):
         average_meter_set = AverageMeterSet()
         train_dataloader = tqdm(self.train_dataloader, desc="Epoch {}".format(epoch))
 
-        for batch_idx, (ref_images, tar_images, modifiers, len_modifiers) in enumerate(train_dataloader):
+        for batch_idx, (ref_images, tar_images, modifiers, len_modifiers, bert_feature) in enumerate(train_dataloader):
             ref_images, tar_images = ref_images.to(self.device), tar_images.to(self.device)
             modifiers, len_modifiers = modifiers.to(self.device), len_modifiers.to(self.device)
-
+            bert_features = bert_feature.to(self.device)
             self._reset_grad()
             # Encode Target Images
             tar_mid_features, _ = self.lower_image_encoder(tar_images)
@@ -31,9 +31,8 @@ class TIRGTrainer(AbstractBaseTrainer):
             # Encode and Fuse Reference Images with Texts
             ref_mid_features, _ = self.lower_image_encoder(ref_images)
             text_features = self.text_encoder(modifiers, len_modifiers)
-            composed_ref_features, _ = self.compositor(ref_mid_features, text_features)
-            composed_ref_features = self.upper_image_encoder(composed_ref_features)
-
+            composed_ref_features, _ = self.compositor(ref_mid_features, text_features, bert_features)
+            # composed_ref_features = self.upper_image_encoder(composed_ref_features)
             # Compute Loss
             loss = self.metric_loss(composed_ref_features, tar_features)
             loss.backward()

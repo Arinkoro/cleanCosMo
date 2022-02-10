@@ -4,13 +4,15 @@ import os
 
 from data.utils import _get_img_from_path
 from data.abc import AbstractBaseDataset, AbstractBaseTestDataset
+import torch 
+import numpy as np
 
-_DEFAULT_FASHION_IQ_DATASET_ROOT = './data/fashionIQ'
-_DEFAULT_FASHION_IQ_VOCAB_PATH = './data/fashionIQ/fashion_iq_vocab.pkl'
+_DEFAULT_FASHION_IQ_DATASET_ROOT = './data/image_retrieval/fashionIQ'
+_DEFAULT_FASHION_IQ_VOCAB_PATH = './data/image_retrieval/fashionIQ/fashion_iq_vocab.pkl'
 
 
 def _get_img_caption_json(dataset_root, clothing_type, split):
-    with open(os.path.join(dataset_root, 'captions', 'cap.{}.{}.json'.format(clothing_type, split))) as json_file:
+    with open(os.path.join(dataset_root, 'captions/raw_cap/new_cap', 'cap.{}.{}.json'.format(clothing_type, split))) as json_file:
         img_caption_data = json.load(json_file)
 
     new_data = []
@@ -57,6 +59,14 @@ def _get_modifier(img_caption_data, idx, reverse=False):
     cap1, cap2 = img_caption_pair['captions']
     return _create_modifier_from_attributes(cap1, cap2) if not reverse else _create_modifier_from_attributes(cap2, cap1)
 
+
+def _get_bert_feature(root, split, clothing_type, img_caption_data, idx):
+    img_caption_pair = img_caption_data[idx]
+    bert_feature = img_caption_pair['bert_feature']
+    bert_feature = os.path.join(
+        root, 'sep_bert_data', split, clothing_type, bert_feature)
+    ln_feature = torch.Tensor(np.load(bert_feature))
+    return ln_feature
 
 def _create_modifier_from_attributes(ref_attribute, targ_attribute):
     return ref_attribute + " and " + targ_attribute
@@ -107,12 +117,15 @@ class FashionIQDataset(AbstractBaseFashionIQDataset):
         reference_img = _get_img_from_path(ref_img_path, self.img_transform)
         target_img = _get_img_from_path(targ_img_path, self.img_transform)
 
+        bert_feature = _get_bert_feature(
+            self.root_path, self.split, self.clothing_type, self.img_caption_data, safe_idx)
+
         modifier = _get_modifier(
             self.img_caption_data, safe_idx, reverse=reverse)
         modifier = self.text_transform(
             modifier) if self.text_transform else modifier
 
-        return reference_img, target_img, modifier, len(modifier)
+        return reference_img, target_img, modifier, len(modifier), bert_feature
 
     def get_original_item(self, idx):
         safe_idx = idx // 2
@@ -125,10 +138,13 @@ class FashionIQDataset(AbstractBaseFashionIQDataset):
         reference_img = _get_img_from_path(ref_img_path)
         target_img = _get_img_from_path(targ_img_path)
 
+        bert_feature = _get_bert_feature(
+            self.root_path, self.split, self.clothing_type, self.img_caption_data, safe_idx)
+
         modifier = _get_modifier(
             self.img_caption_data, safe_idx, reverse=reverse)
 
-        return reference_img, target_img, modifier, len(modifier)
+        return reference_img, target_img, modifier, len(modifier), bert_feature
 
     def __len__(self):
         return len(self.img_caption_data) * 2
@@ -194,7 +210,7 @@ class FashionIQTestQueryDataset(AbstractBaseFashionIQDataset):
         self.clothing_type = clothing_type
         self.img_transform = img_transform
         self.text_transform = text_transform
-
+        self.split = split
         self.img_caption_data = _get_img_caption_json(
             root_path, clothing_type, split)
 
@@ -210,11 +226,14 @@ class FashionIQTestQueryDataset(AbstractBaseFashionIQDataset):
                                                          is_ref=False)
         ref_img = _get_img_from_path(ref_img_path, img_transform)
 
+        bert_feature = _get_bert_feature(
+            self.root_path, self.split, self.clothing_type, self.img_caption_data, safe_idx)
+
         modifier = _get_modifier(
             self.img_caption_data, safe_idx, reverse=reverse)
         modifier = text_transform(modifier) if text_transform else modifier
 
-        return ref_img, ref_id, modifier, targ_id, len(modifier)
+        return ref_img, ref_id, modifier, targ_id, len(modifier), bert_feature
 
     def __len__(self):
         return len(self.img_caption_data) * 2

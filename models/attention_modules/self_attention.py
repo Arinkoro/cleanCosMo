@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 
 from models.utils import reshape_text_features_to_concat
-from models.attention_modules.simple_transformer import Transformer, Embedder
+from models.attention_modules.simple_transformer import Transformer, Transformer2, Embedder
 
 
 class AttentionModule(nn.Module):
     def __init__(self, feature_size, text_feature_size, num_heads, *args, **kwargs):
         super().__init__()
         d_model = 512
+        bert_size = 768
         self.n_heads = num_heads
         self.c_per_head = feature_size // num_heads
         assert feature_size == self.n_heads * self.c_per_head
@@ -23,26 +24,31 @@ class AttentionModule(nn.Module):
         self.W_v = nn.Conv2d(feature_size, feature_size,
                              kernel_size=1, bias=False)
         self.W_r = nn.Conv2d(feature_size, feature_size, kernel_size=1)
-        self.transformer = Transformer(d_model, 3, num_heads)
-        self.embed = Embedder(feature_size)
+        # self.transformer = Transformer(d_model, 3, num_heads)
+        self.bertransformer = Transformer2(bert_size, 3, num_heads)
+        # self.embed = Embedder(feature_size, d_model)
+        # self.bertembed = Embedder(feature_size, bert_size)
 
-    def forward(self, x, t, return_map=False, *args, **kwargs):
-        b, c, h, w = x.size()
+    def forward(self, x, t, bert, return_map=False, *args, **kwargs):
+        # b, c, h, w = x.size()
+        # t_reshaped = reshape_text_features_to_concat(t, x.size())
+        # vl_features = self.merge(
+        #     torch.cat([x, t_reshaped], dim=1))  # (b, c, h, w)
 
-        t_reshaped = reshape_text_features_to_concat(t, x.size())
-        vl_features = self.merge(
-            torch.cat([x, t_reshaped], dim=1))  # (b, c, h, w)
-
-        revalues = self.embed(vl_features)
-        reimg = self.embed(x)
-        tra = self.transformer(reimg, t, revalues)
-        self_att_map = tra.view(-1, 49, 49)
-        values = vl_features.view(b, self.n_heads * self.c_per_head, h * w)
+        # revalues = self.embed(vl_features)
+        # reimg = self.embed(x)
+        tmpimg = x.view(-1, 1, bert.shape[2])
+        tmpvl_features = torch.cat([tmpimg, bert], dim=1)
+        tmptra = self.bertransformer(tmpvl_features, tmpvl_features, tmpvl_features)
+        # tra = self.transformer(reimg, t, revalues)
+        # self_att_map = tra.view(-1, 49, 49)
+        # values = vl_features.view(b, self.n_heads * self.c_per_head, h * w)
         
-        att_out = torch.bmm(values, self_att_map.transpose(1, 2))
-        att_out = att_out.view(b, self.n_heads * self.c_per_head, h, w)
-        att_out = self.W_r(att_out)
-
+        # att_out = torch.bmm(values, self_att_map.transpose(1, 2))
+        # att_out = att_out.view(b, self.n_heads * self.c_per_head, h, w)
+        # att_out = self.W_r(att_out)
+        att_out = tmptra
+        self_att_map = tmptra
         return att_out, self_att_map if return_map else att_out
 
 

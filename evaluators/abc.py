@@ -64,7 +64,7 @@ class AbstractBaseEvaluator(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _extract_original_and_composed_features(self, images, modifiers, len_modifiers):
+    def _extract_original_and_composed_features(self, images, modifiers, len_modifiers, bert_feature):
         raise NotImplementedError
 
     def extract_test_features_and_attributes(self):
@@ -104,14 +104,14 @@ class AbstractBaseEvaluator(abc.ABC):
         all_original_query_features = []
 
         with torch.no_grad():
-            for batch_idx, (ref_images, ref_attribute, modifiers, target_attribute, len_modifiers) in enumerate(
+            for batch_idx, (ref_images, ref_attribute, modifiers, target_attribute, len_modifiers, bert_features) in enumerate(
                     dataloader):
                 batch_size = ref_images.size(0)
                 ref_images = ref_images.to(self.device)
                 modifiers, len_modifiers = modifiers.to(self.device), len_modifiers.to(self.device)
-
+                bert_features = bert_features.to(self.device)
                 original_features, composed_features = \
-                    self._extract_original_and_composed_features(ref_images, modifiers, len_modifiers)
+                    self._extract_original_and_composed_features(ref_images, modifiers, len_modifiers, bert_features)
                 original_features = original_features.view(batch_size, -1).cpu()
                 composed_features = composed_features.view(batch_size, -1).cpu()
                 all_original_query_features.extend(original_features)

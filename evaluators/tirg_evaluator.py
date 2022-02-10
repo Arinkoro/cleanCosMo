@@ -13,8 +13,9 @@ class SimpleEvaluator(AbstractBaseEvaluator):
         mid_features, _ = self.lower_image_encoder(images)
         return self.upper_image_encoder(mid_features)
 
-    def _extract_original_and_composed_features(self, images, modifiers, len_modifiers):
+    def _extract_original_and_composed_features(self, images, modifiers, len_modifiers, bert_feature):
         mid_image_features, _ = self.lower_image_encoder(images)
         text_features = self.text_encoder(modifiers, len_modifiers)
-        composed_features, _ = self.compositor(mid_image_features, text_features)
-        return self.upper_image_encoder(mid_image_features), self.upper_image_encoder(composed_features)
+        composed_features, _ = self.compositor(mid_image_features, text_features, bert_feature)
+        # return self.upper_image_encoder(mid_image_features), self.upper_image_encoder(composed_features)
+        return self.upper_image_encoder(mid_image_features), composed_features
