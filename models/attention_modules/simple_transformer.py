@@ -226,15 +226,15 @@ class DecoderLayer(nn.Module):
         self.dropout_2 = nn.Dropout(dropout)
         self.dropout_3 = nn.Dropout(dropout)
 
-        self.attn_1 = MultiHeadAttention(heads, d_model)
-        self.attn_2 = MultiHeadAttention(heads, d_model)
+        self.attn_1 = MultiHeadAttention2(heads, d_model)
+        self.attn_2 = MultiHeadAttention2(heads, d_model)
         self.ff = FeedForward(d_model).cuda()
 
     def forward(self, x, e_outputs):
         x2 = self.norm_1(x)
-        x = x + self.dropout_1(self.attn_1(x2, x2, x2))
+        x = x + self.dropout_1(self.attn_1(x2, x2, e_outputs))
         x2 = self.norm_2(x)
-        x = x + self.dropout_2(self.attn_2(x2, e_outputs, e_outputs))
+        x = x + self.dropout_2(self.attn_2(x2, x2, e_outputs))
         x2 = self.norm_3(x)
         x = x + self.dropout_3(self.ff(x2))
         return x
@@ -302,8 +302,9 @@ class Encoder2(nn.Module):
     def forward(self, q, k, x):
         # x = self.embed(src)
         x = self.pe(x)
+        # x = q
         for i in range(self.N):
-            x = self.layers[i](q, k, x)
+            x = self.layers[i](x, x, x)
         return self.norm(x)
 
 
@@ -313,16 +314,17 @@ class Decoder(nn.Module):
         super().__init__()
         self.N = N
         # self.embed = Embedder(vocab_size, d_model)
-        # self.pe = PositionalEncoder(d_model)
+        self.pe = PositionalEncoder(d_model)
         self.layers = get_clones(DecoderLayer(d_model, heads), self.N)
         self.norm = Norm(d_model)
 
     def forward(self, trg, e_outputs):
         # x = self.embed(trg)
-        # x = self.pe(x)
+        x = self.pe(trg)
+        # x = trg
         for i in range(self.N):
-            x = self.layers[i](trg, e_outputs)
-        return self.norm(trg)
+            x = self.layers[i](x, x)
+        return self.norm(x)
 
 
 class Transformer(nn.Module):
@@ -343,8 +345,10 @@ class Transformer2(nn.Module):
     def __init__(self, d_model, N, heads):
         super().__init__()
         self.encoder = Encoder2(d_model, N, heads)
+        self.decoder = Decoder(d_model, N, heads)
         self.out = nn.Linear(d_model, 512)
     def forward(self, q, k, v):
         e_outputs = self.encoder(q, k, v)
-        output = self.out(e_outputs)
+        d_outputs = self.decoder(e_outputs, e_outputs)
+        output = self.out(d_outputs)
         return output[:, 0, :]
