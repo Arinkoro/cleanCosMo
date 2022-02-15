@@ -177,21 +177,20 @@ class EncoderLayer2(nn.Module):
     def __init__(self, d_model, heads, dropout=0.1):
         super().__init__()
         self.norm_q = Norm(d_model)
-        self.norm_k = Norm(d_model)
-        self.norm_v = Norm(d_model)
-        self.norm_1 = Norm(d_model)
+        # self.norm_k = Norm(d_model)
+        # self.norm_v = Norm(d_model)
+        # self.norm_1 = Norm(d_model)
         self.norm_2 = Norm(d_model)
         self.attn = MultiHeadAttention2(heads, d_model)
         self.ff = FeedForward(d_model)
         self.dropout_1 = nn.Dropout(dropout)
         self.dropout_2 = nn.Dropout(dropout)
 
-    def forward(self, q, k, v):
-        x = v
-        q = self.norm_q(q)
-        k = self.norm_k(k)
-        v = self.norm_v(v)
-        x = x + self.dropout_1(self.attn(q, k, v))
+    def forward(self, x):
+        q = self.norm_q(x)
+        # k = self.norm_k(x)
+        # v = self.norm_v(x)
+        x = x + self.dropout_1(self.attn(q, q, q))
         x2 = self.norm_2(x)
         x = x + self.dropout_2(self.ff(x2))
         # x2 = self.norm_1(x)
@@ -299,12 +298,12 @@ class Encoder2(nn.Module):
         self.layers = get_clones(EncoderLayer2(d_model, heads), self.N)
         self.norm = Norm(d_model)
 
-    def forward(self, q, k, x):
+    def forward(self, x):
         # x = self.embed(src)
         x = self.pe(x)
         # x = q
         for i in range(self.N):
-            x = self.layers[i](x, x, x)
+            x = self.layers[i](x)
         return self.norm(x)
 
 
@@ -347,8 +346,8 @@ class Transformer2(nn.Module):
         self.encoder = Encoder2(d_model, N, heads)
         self.decoder = Decoder(d_model, N, heads)
         self.out = nn.Linear(d_model, 512)
-    def forward(self, q, k, v):
-        e_outputs = self.encoder(q, k, v)
+    def forward(self, x):
+        e_outputs = self.encoder(x)
         d_outputs = self.decoder(e_outputs, e_outputs)
         output = self.out(d_outputs)
         return output[:, 0, :]

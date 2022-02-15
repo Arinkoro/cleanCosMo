@@ -21,12 +21,11 @@ class DisentangledTransformer(nn.Module):
         self.instance_norm = nn.InstanceNorm2d(feature_size)
         self.embed = Embedder(feature_size, 768)
 
-    def forward(self, x, t, bert, *args, **kwargs):
+    def forward(self, x, bert, *args, **kwargs):
         normed_x = self.embed(self.instance_norm(x))
-        att_out, att_map = self.att_module(normed_x, t, bert, return_map=True)
-        out = att_out
+        att_out, att_map = self.att_module(normed_x, bert, return_map=True)
         # out = normed_x + self.weights[0] * att_out
 
         # out = self.global_styler(out, t, bert, x=x)
 
-        return out, att_map
+        return att_out, att_map

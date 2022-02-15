@@ -13,74 +13,13 @@ class AttentionModule(nn.Module):
         self.n_heads = num_heads
         self.c_per_head = feature_size // num_heads
         assert feature_size == self.n_heads * self.c_per_head
+        self.bertransformer = Transformer2(bert_size, 4, num_heads)
 
-        self.self_att_generator = SelfAttentionMap(
-            feature_size, num_heads, *args, **kwargs)
-        self.global_att_generator = GlobalCrossAttentionMap(
-            feature_size, text_feature_size, num_heads, *args, **kwargs)
-
-        self.merge = nn.Conv2d(
-            feature_size + text_feature_size, feature_size, kernel_size=1, bias=False)
-        self.W_v = nn.Conv2d(feature_size, feature_size,
-                             kernel_size=1, bias=False)
-        self.W_r = nn.Conv2d(feature_size, feature_size, kernel_size=1)
-        # self.transformer = Transformer(d_model, 3, num_heads)
-        self.bertransformer = Transformer2(bert_size, 3, num_heads)
-        # self.embed = Embedder(feature_size, d_model)
-        # self.bertembed = Embedder(feature_size, bert_size)
-
-    def forward(self, x, t, bert, return_map=False, *args, **kwargs):
-        # b, c, h, w = x.size()
-        # t_reshaped = reshape_text_features_to_concat(t, x.size())
-        # vl_features = self.merge(
-        #     torch.cat([x, t_reshaped], dim=1))  # (b, c, h, w)
-
-        # revalues = self.embed(vl_features)
-        # reimg = self.embed(x)
-        tmpimg = x.view(-1, 1, bert.shape[2])
-        tmpvl_features = torch.cat([tmpimg, bert], dim=1)
-        tmptra = self.bertransformer(tmpvl_features, tmpvl_features, tmpvl_features)
-        # tra = self.transformer(reimg, t, revalues)
-        # self_att_map = tra.view(-1, 49, 49)
-        # values = vl_features.view(b, self.n_heads * self.c_per_head, h * w)
-        
-        # att_out = torch.bmm(values, self_att_map.transpose(1, 2))
-        # att_out = att_out.view(b, self.n_heads * self.c_per_head, h, w)
-        # att_out = self.W_r(att_out)
-        att_out = tmptra
-        self_att_map = tmptra
-        return att_out, self_att_map if return_map else att_out
-
-
-# class SelfAttentionMap(nn.Module):
-#     def __init__(self, feature_size, num_heads, *args, **kwargs):
-#         """
-#         x value ver
-#         """
-#         super().__init__()
-
-#         self.n_heads = num_heads
-#         self.c_per_head = feature_size // num_heads
-#         assert feature_size == self.n_heads * self.c_per_head
-
-#         self.W_k = nn.Conv2d(feature_size, feature_size, kernel_size=1, bias=False)
-#         self.W_q = nn.Conv2d(feature_size, feature_size, kernel_size=1, bias=False)
-#         self.softmax = nn.Softmax(dim=2)
-
-#     def forward(self, x, *args, **kwargs):
-#         b, c, hw = x.size()
-#         keys, queries = x, x
-#         # keys = keys.view(b * self.n_heads, self.c_per_head, h, w).view(b * self.n_heads, self.c_per_head, h * w)
-#         # queries = queries.view(b * self.n_heads, self.c_per_head, h, w).view(b * self.n_heads, self.c_per_head, h * w)
-
-#         keys = keys.view(b, self.n_heads * self.c_per_head, hw)
-#         queries = queries.view(b, self.n_heads * self.c_per_head, hw)
-
-#         att_map = torch.bmm(queries.transpose(1, 2), keys) / (self.c_per_head ** 0.5)
-#         att_map = self.softmax(att_map)  # (b * num_heads, h * w, h * w), torch.sum(att_map[batch_idx][?]) == 1
-#         # att_map = att_map.view(b, self.n_heads, h * w, h * w)
-
-#         return att_map
+    def forward(self, x, bert, return_map=False, *args, **kwargs):
+        img = x.view(-1, 1, bert.shape[2])
+        vl_features = torch.cat([img, bert], dim=1)
+        tra = self.bertransformer(vl_features)
+        return tra, tra if return_map else tra
 
 class SelfAttentionMap(nn.Module):
     def __init__(self, feature_size, num_heads, *args, **kwargs):
